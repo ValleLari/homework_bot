@@ -116,29 +116,28 @@ def main():
 
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(0)
-    some_status = None
-    some_error_again = None
+    some = None
 
     while True:
         try:
             response = get_api_answer(timestamp)
             homeworks = check_response(response)
-            if not response['homeworks']:
+            if not homeworks:
                 err_text = 'Список пуст'
-                logger.error(err_text)
+                logger.info(err_text)
                 continue
             hw_status = homeworks[0]['status']
-            if hw_status == some_status:
+            if hw_status == some:
                 logger.debug('Обновления статуса нет')
             else:
-                some_status = hw_status
+                some = hw_status
                 message = parse_status(homeworks[0])
                 send_message(bot, message)
 
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
-            if some_error_again != str(error):
-                some_error_again = str(error)
+            if some != str(error):
+                some = str(error)
                 send_message(bot, message)
                 logger.error(message)
         finally:
