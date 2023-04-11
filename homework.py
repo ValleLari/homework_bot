@@ -67,7 +67,7 @@ def get_api_answer(timestamp: int) -> dict:
         )
     except Exception:
         err_text = 'Ошибка при запросе к ENDPOINT'
-        raise Exception(err_text)
+        raise fails.EndpointFail(err_text)
     if response.status_code != HTTPStatus.OK:
         status_code = response.status_code
         err_text = f'Ошибка {status_code}'
@@ -77,6 +77,7 @@ def get_api_answer(timestamp: int) -> dict:
 
 def check_response(response: dict) -> dict:
     """Проверка ответа API на соответствие документации."""
+    # homework = response.get('homeworks')
     if 'current_date' not in response:
         err_text = 'В ответе API нет домашки на текущую дату'
         raise TypeError(err_text)
@@ -86,7 +87,7 @@ def check_response(response: dict) -> dict:
     if not isinstance(response['homeworks'], list):
         err_text = 'В ответе API нет словаря с домашками'
         raise TypeError(err_text)
-    return response
+    return response['homeworks']
 
 
 def parse_status(homework):
@@ -96,15 +97,14 @@ def parse_status(homework):
         raise KeyError(err_text)
     homework_name = homework['homework_name']
     status = homework['status']
-    if status not in HOMEWORK_VERDICTS:
-        err_text = 'Неизвестный статус домашней работы'
-        raise Exception(err_text)
-    else:
+    if status in HOMEWORK_VERDICTS:
         verdict = HOMEWORK_VERDICTS.get(status)
         return (
             f'Изменился статус проверки '
             f'работы "{homework_name}". {verdict}'
         )
+    err_text = 'Неизвестный статус домашней работы'
+    raise Exception(err_text)
 
 
 def main():
@@ -117,24 +117,30 @@ def main():
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(0)
     some_status = None
+    some_error_again = None
 
     while True:
         try:
             response = get_api_answer(timestamp)
             homeworks = check_response(response)
             if not response['homeworks']:
+                err_text = 'Список пуст'
+                logger.error(err_text)
                 continue
-            hw_status = homeworks['homeworks'][0]['status']
+            hw_status = homeworks[0]['status']
             if hw_status == some_status:
                 logger.debug('Обновления статуса нет')
             else:
                 some_status = hw_status
-                message = parse_status(homeworks['homeworks'][0])
+                message = parse_status(homeworks[0])
                 send_message(bot, message)
 
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
-            logger.error(message)
+            if some_error_again != str(error):
+                some_error_again = str(error)
+                send_message(bot, message)
+                logger.error(message)
         finally:
             time.sleep(RETRY_PERIOD)
 

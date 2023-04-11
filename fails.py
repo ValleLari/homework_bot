@@ -2,5 +2,5 @@ class StatusCodeFail(Exception):
     """Wrong answer from API."""
 
 
-class CheckResponseFail(Exception):
-    """Wrong response."""
+class EndpointFail(Exception):
+    """Wrong endpoint."""
